@@ -1,0 +1,55 @@
+"Games"
+{
+	"#default"
+	{
+		"Keys"
+		{
+			"IVEngineServer"		"VEngineServer023"
+		}
+		"Signatures"
+		{
+			"CreateInterface"
+			{
+				"library"		"engine"
+				"windows"		"@CreateInterface"
+				"linux"			"@CreateInterface"
+			}
+		}
+
+
+	}
+	"csgo"
+	{
+		"Offsets"
+		{
+			"GetClusterForOrigin"
+			{
+				"windows"		"12"
+				"linux"			"12"
+			}
+
+			"GetArea"
+			{
+				"windows"		"65"
+				"linux"			"65"
+			}
+		}
+	}
+	"cstrike"
+	{
+		"Offsets"
+		{
+			"GetClusterForOrigin"
+			{
+				"windows"		"11"
+				"linux"			"11"
+			}
+
+			"GetArea"
+			{
+				"windows"		"64"
+				"linux"			"64"
+			}
+		}
+	}
+}
