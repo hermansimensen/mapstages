@@ -82,6 +82,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 {
 	CreateNative("MS_GetClientStage", Native_GetClientStage);
 	CreateNative("MS_IsStagesEnabled", Native_StagesEnabled);
+	CreateNative("MS_GetStageCount", Native_StageCount);
 
 	RegPluginLibrary("mapstages");
 
@@ -97,6 +98,11 @@ public int Native_GetClientStage(Handle handler, int numParams)
 public int Native_StagesEnabled(Handle handler, int numParams)
 {
 	return g_bStagesEnabled;
+}
+
+public int Native_StageCount(Handle handler, int numParams)
+{
+	return g_iStageCount;
 }
 
 public void OnMapStart()

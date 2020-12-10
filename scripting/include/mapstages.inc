@@ -22,11 +22,19 @@ forward void MS_OnStageChanged(int client, int oldstage, int newstage);
 native int MS_GetClientStage(int client);
 
 /**
+ * Gets the amount of stages for the current map.
+ *
+ * @return							Amount of stages.
+ */
+native int MS_GetStageCount();
+
+/**
  * Checks if stages for the current map is set, and stages are enabled.
  *
  * @return							True if stages are set and enabled, false otherwise.
  */
 native bool MS_IsStagesEnabled();
+
 
 
 public SharedPlugin __pl_server_redirect = 
