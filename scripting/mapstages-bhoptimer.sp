@@ -333,6 +333,13 @@ public void Callback_PlayerEntry(Database db, DBResultSet results, const char[] 
 		char query[1024];
 		FormatEx(query, sizeof(query), "INSERT INTO `users` (`name`, `steamauth`) VALUES ('%s', '%i');", playerName, GetSteamAccountID(client));
 		g_hDatabase.Query(Callback_InsertMap, query);
+	} else
+	{
+		char query[1024];
+		FormatEx(query, sizeof(query), "DELETE FROM users WHERE steamauth = '%i';", GetSteamAccountID(client));
+		g_hDatabase.Query(Callback_InsertMap, query);
+		FormatEx(query, sizeof(query), "INSERT INTO `users` (`name`, `steamauth`) VALUES ('%s', '%i');", playerName, GetSteamAccountID(client));
+		g_hDatabase.Query(Callback_InsertMap, query);
 	}
 }
 
@@ -587,16 +594,16 @@ public void MS_OnStageChanged(int client, int oldstage, int newstage)
 				PrintToChat(client, "[Stages] New PB for stage %i. Time: %s (-%s)", oldstage, timeString, timeDiff);
 				UpdatePB(client, time, snap.fCurrentTime, oldstage, snap.bsStyle);
 				UpdatePBInCPs(client, time, snap.fCurrentTime, oldstage);
+				if(time < g_fStageWR[snap.bsStyle][oldstage])
+				{
+					LoadMapWRs();
+				}
 			}
 		} else
 		{
 			PrintToChat(client, "[Stages] New PB for stage %i. Time: %s (-%fs)", oldstage, timeString, timeDiff);
 			UpdatePB(client, time, snap.fCurrentTime, oldstage, snap.bsStyle);
 			UpdatePBInCPs(client, time, snap.fCurrentTime, oldstage);
-		}
-		
-		if(time < g_fStageWR[snap.bsStyle][oldstage])
-		{
 			LoadMapWRs();
 		}
 		
@@ -652,6 +659,7 @@ public Action Shavit_OnTopLeftHUD(int client, int target, char[] topleft, int to
 	if(g_fStageWR[Shavit_GetBhopStyle(client)][MS_GetClientStage(client)] != 0.0)
 	{
 		FormatSeconds(g_fStageWR[Shavit_GetBhopStyle(client)][MS_GetClientStage(client)], wrString, sizeof(wrString));
+		Format(wrString, sizeof(wrString), "%s (%s)", wrString, g_sWRHolder[Shavit_GetBhopStyle(client)][MS_GetClientStage(client)]);
 	} else
 	{
 		Format(wrString, sizeof(wrString), "N/A");
