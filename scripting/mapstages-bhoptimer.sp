@@ -22,7 +22,7 @@ int g_iMenuStyle[MAXPLAYERS + 1];
 
 int g_iFurthestStage[MAXPLAYERS + 1];
 float g_fLastTime[MAXPLAYERS + 1];
-float g_fTime[MAXPLAYERS + 1][STYLE_LIMIT][50][2]; //setting 128 as a max stage limit for now. No one needs more than that... right?
+float g_fTime[MAXPLAYERS + 1][50][2]; //setting 128 as a max stage limit for now. No one needs more than that... right?
 float g_fStageWR[STYLE_LIMIT][50];
 char g_sWRHolder[STYLE_LIMIT][50][32];
 Database g_hDatabase;
@@ -176,18 +176,15 @@ public void OnMapStart()
 
 public void OnClientPutInServer(int client)
 {
-	for(int i = 0; i < Shavit_GetStyleCount(); i++)
+	for(int y = 0; y < MS_GetStageCount(); y++)
 	{
-		for(int y = 0; y < MS_GetStageCount(); y++)
-		{
-			g_fTime[client][i][y][TIME_SPENT] = 0.0;
-			g_fTime[client][i][y][TIME_TOTAL] = 0.0;
-		}
+		g_fTime[client][y][TIME_SPENT] = 0.0;
+		g_fTime[client][y][TIME_TOTAL] = 0.0;
 	}
 	
 	CheckPlayerEntry(client);
 	
-	UpdatePlayerData(client);
+	UpdatePlayerData(client, Shavit_GetBhopStyle(client));
 	
 	if(g_aStages[client] == null)
 	{
@@ -317,6 +314,9 @@ public void Callback_PlayerEntry(Database db, DBResultSet results, const char[] 
 	int client = GetClientFromSerial(data);
 	GetClientName(client, playerName, sizeof(playerName));
 	
+	if(client == 0)
+		return;
+	
 	if(results.RowCount == 0)
 	{
 		char query[1024];
@@ -332,10 +332,16 @@ public void Callback_PlayerEntry(Database db, DBResultSet results, const char[] 
 	}
 }
 
-public void UpdatePlayerData(int client)
+public void UpdatePlayerData(int client, int style)
 {
+	for(int y = 0; y < MS_GetStageCount(); y++)
+	{
+		g_fTime[client][y][TIME_SPENT] = 0.0;
+		g_fTime[client][y][TIME_TOTAL] = 0.0;
+	}
+	
 	char query[1024];
-	FormatEx(query, sizeof(query), "SELECT currenttime, timespent, stage, style FROM stagetimes WHERE steamauth = %i and map = '%s';", GetSteamAccountID(client), g_sMap);
+	FormatEx(query, sizeof(query), "SELECT currenttime, timespent, stage FROM stagetimes WHERE steamauth = %i and map = '%s' and style = %i;", GetSteamAccountID(client), g_sMap, style);
 	g_hDatabase.Query(Callback_UpdatePlayerData, query, GetClientSerial(client));
 }
 
@@ -372,7 +378,7 @@ public void EnableMap()
 public void UpdateEnabled()
 {
 	char query[1024];
-	FormatEx(query, sizeof(query), "UPDATE `maps` SET `enabled` = '%i' WHERE (`map` = '%s');", g_bEnabled, g_sMap);
+	FormatEx(query, sizeof(query), "UPDATE `stagemaps` SET `enabled` = '%i' WHERE (`map` = '%s');", g_bEnabled, g_sMap);
 	g_hDatabase.Query(Callback_InsertMap, query);
 }
 
@@ -395,7 +401,7 @@ public void Callback_UpdatePB(Database db, DBResultSet results, const char[] err
 	int client = GetClientFromSerial(data);
 	
 	if(client > 0)
-		UpdatePlayerData(client);
+		UpdatePlayerData(client, Shavit_GetBhopStyle(client));
 }
 
 public void Callback_MapEnabled(Database db, DBResultSet results, const char[] error, any data)
@@ -451,10 +457,9 @@ public void Callback_UpdatePlayerData(Database db, DBResultSet results, const ch
 			float currentTime = results.FetchFloat(0);
 			float spentTime = results.FetchFloat(1);
 			int stage = results.FetchInt(2);
-			int style = results.FetchInt(3);
 			
-			g_fTime[client][style][stage][TIME_SPENT] = spentTime;
-			g_fTime[client][style][stage][TIME_TOTAL] = currentTime;
+			g_fTime[client][stage][TIME_SPENT] = spentTime;
+			g_fTime[client][stage][TIME_TOTAL] = currentTime;
 		}
 	}
 }
@@ -484,8 +489,8 @@ public Action Shavit_OnTeleport(int client, int index)
 	{
 		stage_t stage;
 		g_aStages[client].GetArray(i, stage);
-		g_fTime[client][Shavit_GetBhopStyle(client)][stage.iStage][TIME_SPENT] = stage.fSpentTime;
-		g_fTime[client][Shavit_GetBhopStyle(client)][stage.iStage][TIME_TOTAL] = stage.fTotalTime;
+		g_fTime[client][stage.iStage][TIME_SPENT] = stage.fSpentTime;
+		g_fTime[client][stage.iStage][TIME_TOTAL] = stage.fTotalTime;
 		g_fLastTime[client] = stage.fLastTime;
 		g_iFurthestStage[client] = stage.iFurthestStage;
 	}
@@ -503,7 +508,7 @@ public Action Shavit_OnSave(int client, int index, bool overflow)
 		stage_t stage;
 		stage.iFurthestStage = 1;
 		stage.fLastTime = 0.0;
-		stage.fSpentTime = g_fTime[client][Shavit_GetBhopStyle(client)][1][TIME_SPENT];
+		stage.fSpentTime = g_fTime[client][1][TIME_SPENT];
 		stage.fTotalTime = snap.fCurrentTime;
 		stage.iStage = 1;
 		
@@ -573,11 +578,11 @@ public void MS_OnStageChanged(int client, int oldstage, int newstage)
 		FormatSeconds(time, timeString, sizeof(timeString));
 		
 		char timeDiff[64];
-		FormatSeconds(g_fTime[client][snap.bsStyle][oldstage][TIME_SPENT] - time, timeDiff, sizeof(timeDiff));
+		FormatSeconds(g_fTime[client][oldstage][TIME_SPENT] - time, timeDiff, sizeof(timeDiff));
 	
-		if(g_fTime[client][snap.bsStyle][oldstage][TIME_SPENT] != 0.0)
+		if(g_fTime[client][oldstage][TIME_SPENT] != 0.0)
 		{
-			if((time < g_fTime[client][snap.bsStyle][oldstage][TIME_SPENT])) 
+			if((time < g_fTime[client][oldstage][TIME_SPENT])) 
 			{
 				
 				PrintToChat(client, "[Stages] New PB for stage %i. Time: %s (-%s)", oldstage, timeString, timeDiff);
@@ -601,7 +606,7 @@ public void MS_OnStageChanged(int client, int oldstage, int newstage)
 		stage_t stage;
 		stage.fLastTime = g_fLastTime[client];
 		stage.fSpentTime = time;
-		stage.fTotalTime = g_fTime[client][snap.bsStyle][oldstage][TIME_TOTAL];
+		stage.fTotalTime = g_fTime[client][oldstage][TIME_TOTAL];
 		stage.iFurthestStage = g_iFurthestStage[client];
 		stage.iStage = oldstage;
 		
@@ -636,9 +641,9 @@ public Action Shavit_OnTopLeftHUD(int client, int target, char[] topleft, int to
 		return Plugin_Continue;
 	
 	char timeString[64];
-	if(g_fTime[client][Shavit_GetBhopStyle(client)][MS_GetClientStage(client)][TIME_SPENT] != 0.0)
+	if(g_fTime[client][MS_GetClientStage(client)][TIME_SPENT] != 0.0)
 	{
-		FormatSeconds(g_fTime[client][Shavit_GetBhopStyle(client)][MS_GetClientStage(client)][TIME_SPENT], timeString, sizeof(timeString));
+		FormatSeconds(g_fTime[client][MS_GetClientStage(client)][TIME_SPENT], timeString, sizeof(timeString));
 	} else
 	{
 		Format(timeString, sizeof(timeString), "N/A");
@@ -656,4 +661,9 @@ public Action Shavit_OnTopLeftHUD(int client, int target, char[] topleft, int to
 	
 	Format(topleft, topleftlength, "%s \nStage WR: %s\nStage PB: %s", topleft, wrString, timeString);
 	return Plugin_Changed;
+}
+
+public void Shavit_OnStyleChanged(int client, int oldstyle, int newstyle, int track, bool manual)
+{
+	UpdatePlayerData(client, newstyle);
 }
