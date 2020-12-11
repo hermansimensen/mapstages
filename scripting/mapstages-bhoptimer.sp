@@ -180,6 +180,14 @@ public void OnMapStart()
 	g_bEnabled = false;
 	CheckMapEnabled();
 	
+	for(int i = 0; i < Shavit_GetStyleCount(); i++)
+	{
+		for(int y = 0; y < 50; y++)
+		{
+			g_fStageWR[i][y] = 0.0;
+		}
+	}
+	
 	LoadMapWRs();
 }
 
