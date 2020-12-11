@@ -18,14 +18,13 @@
 #pragma semicolon 1
 
 float g_fWRTimes[50][2];
-char g_sNames[50][160];
 int g_iMenuStyle[MAXPLAYERS + 1];
 
 int g_iFurthestStage[MAXPLAYERS + 1];
 float g_fLastTime[MAXPLAYERS + 1];
-float g_fTime[MAXPLAYERS + 1][STYLE_LIMIT][128][2]; //setting 128 as a max stage limit for now. No one needs more than that... right?
-float g_fStageWR[STYLE_LIMIT][128];
-char g_sWRHolder[STYLE_LIMIT][128][160];
+float g_fTime[MAXPLAYERS + 1][STYLE_LIMIT][50][2]; //setting 128 as a max stage limit for now. No one needs more than that... right?
+float g_fStageWR[STYLE_LIMIT][50];
+char g_sWRHolder[STYLE_LIMIT][50][32];
 Database g_hDatabase;
 char g_sMap[PLATFORM_MAX_PATH];
 bool g_bEnabled;
@@ -76,7 +75,7 @@ public void OpenStyleMenu(int client)
 	
 	for(int i = 0; i < Shavit_GetStyleCount(); i++)
 	{
-		char name[128];
+		char name[32];
 		Shavit_GetStyleStrings(i, sStyleName, name, sizeof(name));
 		char index[16];
 		IntToString(i, index, 16);
@@ -117,7 +116,7 @@ public void OpenStageMenu(int client)
 		char index[32];
 		IntToString(i, index, sizeof(index));
 		
-		char fmt[128];
+		char fmt[48];
 		Format(fmt, sizeof(fmt), "Stage %s", index);
 		
 		menu.AddItem(index, fmt);
@@ -148,27 +147,7 @@ public int MenuHandler_Stages(Menu menu, MenuAction action, int param1, int para
 
 public void OpenWRMenu(int client)
 {
-	Menu menu = new Menu(MenuHandler_Listing);
-	
-	
-	menu.SetTitle("Stage WR list");
-	
-	for(int i = 0; i < 50; i++)
-	{
-		if(g_fWRTimes[i][TIME_SPENT] != 0.0)
-		{
-			char stagetime[128];
-			FormatSeconds(g_fWRTimes[i][TIME_SPENT], stagetime, sizeof(stagetime));
-			char timertime[128];
-			FormatSeconds(g_fWRTimes[i][TIME_TOTAL], timertime, sizeof(timertime));
-			char display[128];
-			Format(display, sizeof(display), "%s - Stage: %s - Timer: %s", g_sNames[i], stagetime, timertime);
-			
-			menu.AddItem("", display, ITEMDRAW_DISABLED);
-		}
-	}
-	
-	menu.Display(client, 60);
+
 }
 
 public int MenuHandler_Listing(Menu menu, MenuAction action, int param1, int param2)
@@ -274,7 +253,7 @@ public void LoadMapWRs()
 		for(int y = 1; y < MS_GetStageCount(); y++)
 		{
 			char query[1024];
-			FormatEx(query, sizeof(query), "SELECT playertimes.stage, playertimes.style, playertimes.timespent, users.name FROM playertimes INNER JOIN users ON playertimes.steamauth = users.steamauth WHERE style = '%i' and map = '%s' and stage = '%i' ORDER BY playertimes.timespent ASC LIMIT 1;", i, g_sMap, y);
+			FormatEx(query, sizeof(query), "SELECT stagetimes.stage, stagetimes.style, stagetimes.timespent, stageusers.name FROM stagetimes INNER JOIN stageusers ON stagetimes.steamauth = stageusers.steamauth WHERE style = '%i' and map = '%s' and stage = '%i' ORDER BY stagetimes.timespent ASC LIMIT 1;", i, g_sMap, y);
 			g_hDatabase.Query(Callback_WRLoad, query);
 		}
 	}
@@ -294,32 +273,42 @@ public void Callback_WRLoad(Database db, DBResultSet results, const char[] error
 public void CheckPlayerEntry(int client)
 {
 	char query[1024];
-	FormatEx(query, sizeof(query), "SELECT name FROM users WHERE steamauth = '%i';", GetSteamAccountID(client));
+	FormatEx(query, sizeof(query), "SELECT name FROM stageusers WHERE steamauth = '%i';", GetSteamAccountID(client));
 	g_hDatabase.Query(Callback_PlayerEntry, query, GetClientSerial(client));
 }
 
 public void LoadWRsForStyle(int client, int stage)
 {
 	char query[1024];
-	FormatEx(query, sizeof(query), "SELECT playertimes.timespent, playertimes.currenttime, playertimes.stage, playertimes.steamauth, users.name FROM playertimes INNER JOIN users ON playertimes.steamauth = users.steamauth WHERE playertimes.map = '%s' and playertimes.style = %i and playertimes.stage = %i ORDER BY playertimes.timespent ASC LIMIT 50", g_sMap, g_iMenuStyle[client], stage);
+	FormatEx(query, sizeof(query), "SELECT stagetimes.timespent, stagetimes.currenttime, stagetimes.stage, stagetimes.steamauth, stageusers.name FROM stagetimes INNER JOIN stageusers ON stagetimes.steamauth = stageusers.steamauth WHERE stagetimes.map = '%s' and stagetimes.style = %i and stagetimes.stage = %i ORDER BY stagetimes.timespent ASC LIMIT 50", g_sMap, g_iMenuStyle[client], stage);
 	g_hDatabase.Query(Callback_LoadWRs, query, GetClientSerial(client));
 }
 
 public void Callback_LoadWRs(Database db, DBResultSet results, const char[] error, any data)
 {
 	int client = GetClientFromSerial(data);
+	Menu menu = new Menu(MenuHandler_Listing);
+
+	menu.SetTitle("Stage WR list");
 	
 	int i = 0;
 	while(results.FetchRow())
 	{
 		g_fWRTimes[i][TIME_SPENT] = results.FetchFloat(0);
 		g_fWRTimes[i][TIME_TOTAL] = results.FetchFloat(1);
-		results.FetchString(4, g_sNames[i], 160);
+		char name[32];
+		results.FetchString(4, name, 32);
 		
-		i++;
+		char stagetime[16];
+		FormatSeconds(g_fWRTimes[i][TIME_SPENT], stagetime, sizeof(stagetime));
+		char timertime[16];
+		FormatSeconds(g_fWRTimes[i][TIME_TOTAL], timertime, sizeof(timertime));
+		char display[64];
+		Format(display, sizeof(display), "%s - Stage: %s - Timer: %s", name, stagetime, timertime);
+		
+		menu.AddItem("", display, ITEMDRAW_DISABLED);
 	}
-	
-	OpenWRMenu(client);
+	menu.Display(client, 60);
 }
 
 public void Callback_PlayerEntry(Database db, DBResultSet results, const char[] error, any data)
@@ -331,14 +320,14 @@ public void Callback_PlayerEntry(Database db, DBResultSet results, const char[] 
 	if(results.RowCount == 0)
 	{
 		char query[1024];
-		FormatEx(query, sizeof(query), "INSERT INTO `users` (`name`, `steamauth`) VALUES ('%s', '%i');", playerName, GetSteamAccountID(client));
+		FormatEx(query, sizeof(query), "INSERT INTO `stageusers` (`name`, `steamauth`) VALUES ('%s', '%i');", playerName, GetSteamAccountID(client));
 		g_hDatabase.Query(Callback_InsertMap, query);
 	} else
 	{
 		char query[1024];
-		FormatEx(query, sizeof(query), "DELETE FROM users WHERE steamauth = '%i';", GetSteamAccountID(client));
+		FormatEx(query, sizeof(query), "DELETE FROM stageusers WHERE steamauth = '%i';", GetSteamAccountID(client));
 		g_hDatabase.Query(Callback_InsertMap, query);
-		FormatEx(query, sizeof(query), "INSERT INTO `users` (`name`, `steamauth`) VALUES ('%s', '%i');", playerName, GetSteamAccountID(client));
+		FormatEx(query, sizeof(query), "INSERT INTO `stageusers` (`name`, `steamauth`) VALUES ('%s', '%i');", playerName, GetSteamAccountID(client));
 		g_hDatabase.Query(Callback_InsertMap, query);
 	}
 }
@@ -346,25 +335,25 @@ public void Callback_PlayerEntry(Database db, DBResultSet results, const char[] 
 public void UpdatePlayerData(int client)
 {
 	char query[1024];
-	FormatEx(query, sizeof(query), "SELECT currenttime, timespent, stage, style FROM playertimes WHERE steamauth = %i and map = '%s';", GetSteamAccountID(client), g_sMap);
+	FormatEx(query, sizeof(query), "SELECT currenttime, timespent, stage, style FROM stagetimes WHERE steamauth = %i and map = '%s';", GetSteamAccountID(client), g_sMap);
 	g_hDatabase.Query(Callback_UpdatePlayerData, query, GetClientSerial(client));
 }
 
 public void CreateDefaultTables()
 {
 	char query[1024];
-	FormatEx(query, sizeof(query), "CREATE TABLE IF NOT EXISTS `playertimes` (`index` INT(11) NOT NULL AUTO_INCREMENT, `steamauth` INT(11) NOT NULL, `map` CHAR(160) NOT NULL, `currenttime` FLOAT(23,8) NOT NULL, `timespent` FLOAT(23,8) NOT NULL, `style` TINYINT(4) NOT NULL, `stage` INT(11) NOT NULL, PRIMARY KEY (`index`)) ENGINE=INNODB;");
+	FormatEx(query, sizeof(query), "CREATE TABLE IF NOT EXISTS `stagetimes` (`index` INT(11) NOT NULL AUTO_INCREMENT, `steamauth` INT(11) NOT NULL, `map` CHAR(160) NOT NULL, `currenttime` FLOAT(23,8) NOT NULL, `timespent` FLOAT(23,8) NOT NULL, `style` TINYINT(4) NOT NULL, `stage` INT(11) NOT NULL, PRIMARY KEY (`index`)) ENGINE=INNODB;");
 	g_hDatabase.Query(Callback_TableCreation, query);
-  	FormatEx(query, sizeof(query), "CREATE TABLE IF NOT EXISTS `maps` ( `map` CHAR(160) NOT NULL, `enabled` TINYINT(4) NULL, PRIMARY KEY (`map`)) ENGINE=INNODB;");
+  	FormatEx(query, sizeof(query), "CREATE TABLE IF NOT EXISTS `stagemaps` ( `map` CHAR(160) NOT NULL, `enabled` TINYINT(4) NULL, PRIMARY KEY (`map`)) ENGINE=INNODB;");
 	g_hDatabase.Query(Callback_TableCreation, query);
-	FormatEx(query, sizeof(query), "CREATE TABLE IF NOT EXISTS `users` ( `name` CHAR(160) NOT NULL, `steamauth` INT(11) NOT NULL, PRIMARY KEY (`steamauth`)) ENGINE=INNODB;");
+	FormatEx(query, sizeof(query), "CREATE TABLE IF NOT EXISTS `stageusers` ( `name` CHAR(160) NOT NULL, `steamauth` INT(11) NOT NULL, PRIMARY KEY (`steamauth`)) ENGINE=INNODB;");
 	g_hDatabase.Query(Callback_TableCreation, query);
 }
 
 public void CheckMapEnabled()
 {
 	char query[1024];
-	FormatEx(query, sizeof(query), "SELECT enabled FROM maps WHERE map = '%s';", g_sMap);
+	FormatEx(query, sizeof(query), "SELECT enabled FROM stagemaps WHERE map = '%s';", g_sMap);
 	g_hDatabase.Query(Callback_MapEnabled, query);
 }
 
@@ -390,9 +379,9 @@ public void UpdateEnabled()
 public void UpdatePB(int client, float time, float timerTime, int stage, int style)
 {
 	char query[2048];
-	FormatEx(query, sizeof(query), "DELETE FROM playertimes WHERE map = '%s' and style = '%i' and steamauth = '%i' and stage = '%i';", g_sMap, style, GetSteamAccountID(client), stage);
+	FormatEx(query, sizeof(query), "DELETE FROM stagetimes WHERE map = '%s' and style = '%i' and steamauth = '%i' and stage = '%i';", g_sMap, style, GetSteamAccountID(client), stage);
 	g_hDatabase.Query(Callback_UpdatePB, query);
-	FormatEx(query, sizeof(query), "INSERT INTO `playertimes` (`steamauth`, `map`, `currenttime`, `timespent`, `style`, `stage`) VALUES ('%i', '%s', '%f', '%f', '%i', '%i');", GetSteamAccountID(client), g_sMap, timerTime, time, style, stage);
+	FormatEx(query, sizeof(query), "INSERT INTO `stagetimes` (`steamauth`, `map`, `currenttime`, `timespent`, `style`, `stage`) VALUES ('%i', '%s', '%f', '%f', '%i', '%i');", GetSteamAccountID(client), g_sMap, timerTime, time, style, stage);
 	g_hDatabase.Query(Callback_UpdatePB, query, GetClientSerial(client));
 }
 
@@ -422,7 +411,7 @@ public void Callback_MapEnabled(Database db, DBResultSet results, const char[] e
 	} else
 	{
 		char query[1024];
-		FormatEx(query, sizeof(query), "INSERT INTO `maps` (`map`, `enabled`) VALUES ('%s', '0');", g_sMap);
+		FormatEx(query, sizeof(query), "INSERT INTO `stagemaps` (`map`, `enabled`) VALUES ('%s', '0');", g_sMap);
 		g_hDatabase.Query(Callback_InsertMap, query);
 	}
 }
