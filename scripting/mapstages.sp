@@ -317,7 +317,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			g_iClientStage[client] = stage;
 			
 			//dont update text every single tick
-			if(g_iClientTicks[client] >= 50)
+			if(g_iClientTicks[client] >= 60)
 			{
 				SetHudTextParams(0.45, 1.0, 5.0, 255, 255, 255, 255, 0, 0.0, 0.0, 0.0);
 				ShowSyncHudText(client, g_hSyncText, "Stage: %i/%i", stage, g_iStageCount);

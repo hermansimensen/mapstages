@@ -608,13 +608,16 @@ public void MS_OnStageChanged(int client, int oldstage, int newstage)
 		
 		g_aStages[client].PushArray(stage);
 		
+		char name[32];
+		GetClientName(client, name, 32);
+		
 		if((time < g_fTime[client][oldstage][TIME_SPENT]) || g_fTime[client][oldstage][TIME_SPENT] == 0) 
 		{
 			UpdatePB(client, time, snap.fCurrentTime, oldstage, snap.bsStyle);
 			UpdatePBInCPs(client, time, snap.fCurrentTime, oldstage);
-			if(time < g_fStageWR[snap.bsStyle][oldstage])
+			if((time < g_fStageWR[snap.bsStyle][oldstage]) || g_fStageWR[snap.bsStyle][oldstage] == 0.0)
 			{
-				Shavit_PrintToChatAll("New WR for stage %s%i%s. Time: %s (%s-%f%s)", sMessageStyle, oldstage, sMessageText, timeString, sMessageWarning, timeDiff, sMessageText);
+				Shavit_PrintToChatAll("New WR! %s finished stage %s%i%s in %s (%s-%f%s)", name, sMessageStyle, oldstage, sMessageText, timeString, sMessageWarning, timeDiff, sMessageText);
 				LoadMapWRs();
 			} else
 			{
@@ -708,6 +711,9 @@ public void Shavit_OnFinish(int client, int style, float time, int jumps, int st
 		staget.iStage = stage;
 		
 		g_aStages[client].PushArray(staget);
+	
+		char name[32];
+		GetClientName(client, name, 32);
 
 		if((timet < g_fTime[client][stage][TIME_SPENT]) || (g_fTime[client][stage][TIME_SPENT] == 0.0)) 
 		{
@@ -716,7 +722,7 @@ public void Shavit_OnFinish(int client, int style, float time, int jumps, int st
 			UpdatePBInCPs(client, timet, snap.fCurrentTime, stage);
 			if(timet < g_fStageWR[snap.bsStyle][stage] || g_fStageWR[snap.bsStyle][stage] == 0.0)
 			{
-				Shavit_PrintToChatAll("New WR for stage %s%i%s. Time: %s (%s-%f%s)", sMessageStyle, stage, sMessageText, timeString, sMessageWarning, timeDiff, sMessageText);
+				Shavit_PrintToChatAll("New WR! %s finished stage %s%i%s in %s (%s-%f%s)", name, sMessageStyle, stage, sMessageText, timeString, sMessageWarning, timeDiff, sMessageText);
 			} else
 			{
 				Shavit_PrintToChat(client, "New PB for stage %s%i%s. Time: %s (%s-%f%s)", sMessageStyle, stage, sMessageText, timeString, sMessageWarning, timeDiff, sMessageText);
