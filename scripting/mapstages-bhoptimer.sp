@@ -22,7 +22,7 @@ int g_iMenuStyle[MAXPLAYERS + 1];
 
 int g_iFurthestStage[MAXPLAYERS + 1];
 float g_fLastTime[MAXPLAYERS + 1];
-float g_fTime[MAXPLAYERS + 1][50][2]; //setting 128 as a max stage limit for now. No one needs more than that... right?
+float g_fTime[MAXPLAYERS + 1][50][2];
 float g_fStageWR[STYLE_LIMIT][50];
 char g_sWRHolder[STYLE_LIMIT][50][32];
 Database g_hDatabase;
@@ -31,6 +31,8 @@ bool g_bEnabled;
 
 ArrayList g_aStages[MAXPLAYERS + 1];
 ArrayList g_aCheckpoints[MAXPLAYERS + 1];
+
+chatstrings_t g_sChatstrings;
 
 public Plugin myinfo =
 {
@@ -60,6 +62,18 @@ public void OnPluginStart()
 	
 	RegConsoleCmd("sm_stagewr", Command_WR, "List stage WR's for map");
 }
+
+
+public void Shavit_OnChatConfigLoaded()
+{
+	Shavit_GetChatStrings(sMessagePrefix, g_sChatstrings.sPrefix, sizeof(chatstrings_t::sPrefix));
+	Shavit_GetChatStrings(sMessageText, g_sChatstrings.sText, sizeof(chatstrings_t::sText));
+	Shavit_GetChatStrings(sMessageWarning, g_sChatstrings.sWarning, sizeof(chatstrings_t::sWarning));
+	Shavit_GetChatStrings(sMessageVariable, g_sChatstrings.sVariable, sizeof(chatstrings_t::sVariable));
+	Shavit_GetChatStrings(sMessageVariable2, g_sChatstrings.sVariable2, sizeof(chatstrings_t::sVariable2));
+	Shavit_GetChatStrings(sMessageStyle, g_sChatstrings.sStyle, sizeof(chatstrings_t::sStyle));
+}
+
 
 public Action Command_WR(int client, int args)
 {
@@ -143,11 +157,6 @@ public int MenuHandler_Stages(Menu menu, MenuAction action, int param1, int para
 	}
 
 	return 0;
-}
-
-public void OpenWRMenu(int client)
-{
-
 }
 
 public int MenuHandler_Listing(Menu menu, MenuAction action, int param1, int param2)
@@ -247,7 +256,7 @@ public void LoadMapWRs()
 {
 	for(int i = 0; i < Shavit_GetStyleCount(); i++)
 	{
-		for(int y = 1; y < MS_GetStageCount(); y++)
+		for(int y = 1; y <= MS_GetStageCount(); y++)
 		{
 			char query[1024];
 			FormatEx(query, sizeof(query), "SELECT stagetimes.stage, stagetimes.style, stagetimes.timespent, stageusers.name FROM stagetimes INNER JOIN stageusers ON stagetimes.steamauth = stageusers.steamauth WHERE style = '%i' and map = '%s' and stage = '%i' ORDER BY stagetimes.timespent ASC LIMIT 1;", i, g_sMap, y);
@@ -263,7 +272,7 @@ public void Callback_WRLoad(Database db, DBResultSet results, const char[] error
 		int stage = results.FetchInt(0);
 		int style = results.FetchInt(1);
 		g_fStageWR[style][stage] = results.FetchFloat(2);
-		results.FetchString(3, g_sWRHolder[style][stage], 160);
+		results.FetchString(3, g_sWRHolder[style][stage], 32);
 	}
 }
 
@@ -305,7 +314,15 @@ public void Callback_LoadWRs(Database db, DBResultSet results, const char[] erro
 		
 		menu.AddItem("", display, ITEMDRAW_DISABLED);
 	}
-	menu.Display(client, 60);
+	
+	if(results.RowCount != 0)
+	{
+		menu.Display(client, 60);
+	} else
+	{
+		delete menu;
+		Shavit_PrintToChat(client, "No WRs available for this stage or style.");
+	}
 }
 
 public void Callback_PlayerEntry(Database db, DBResultSet results, const char[] error, any data)
@@ -579,27 +596,6 @@ public void MS_OnStageChanged(int client, int oldstage, int newstage)
 		
 		char timeDiff[64];
 		FormatSeconds(g_fTime[client][oldstage][TIME_SPENT] - time, timeDiff, sizeof(timeDiff));
-	
-		if(g_fTime[client][oldstage][TIME_SPENT] != 0.0)
-		{
-			if((time < g_fTime[client][oldstage][TIME_SPENT])) 
-			{
-				
-				PrintToChat(client, "[Stages] New PB for stage %i. Time: %s (-%s)", oldstage, timeString, timeDiff);
-				UpdatePB(client, time, snap.fCurrentTime, oldstage, snap.bsStyle);
-				UpdatePBInCPs(client, time, snap.fCurrentTime, oldstage);
-				if(time < g_fStageWR[snap.bsStyle][oldstage])
-				{
-					LoadMapWRs();
-				}
-			}
-		} else
-		{
-			PrintToChat(client, "[Stages] New PB for stage %i. Time: %s (-%fs)", oldstage, timeString, timeDiff);
-			UpdatePB(client, time, snap.fCurrentTime, oldstage, snap.bsStyle);
-			UpdatePBInCPs(client, time, snap.fCurrentTime, oldstage);
-			LoadMapWRs();
-		}
 		
 		g_fLastTime[client] = time;
 		
@@ -611,6 +607,20 @@ public void MS_OnStageChanged(int client, int oldstage, int newstage)
 		stage.iStage = oldstage;
 		
 		g_aStages[client].PushArray(stage);
+		
+		if((time < g_fTime[client][oldstage][TIME_SPENT]) || g_fTime[client][oldstage][TIME_SPENT] == 0) 
+		{
+			UpdatePB(client, time, snap.fCurrentTime, oldstage, snap.bsStyle);
+			UpdatePBInCPs(client, time, snap.fCurrentTime, oldstage);
+			if(time < g_fStageWR[snap.bsStyle][oldstage])
+			{
+				Shavit_PrintToChatAll("New WR for stage %s%i%s. Time: %s (%s-%f%s)", sMessageStyle, oldstage, sMessageText, timeString, sMessageWarning, timeDiff, sMessageText);
+				LoadMapWRs();
+			} else
+			{
+				Shavit_PrintToChat(client, "New PB for stage %s%i%s. Time: %s (%s-%f%s)", sMessageStyle, oldstage, sMessageText, timeString, sMessageWarning, timeDiff, sMessageText);
+			}
+		}
 	}
 }
 
@@ -666,4 +676,52 @@ public Action Shavit_OnTopLeftHUD(int client, int target, char[] topleft, int to
 public void Shavit_OnStyleChanged(int client, int oldstyle, int newstyle, int track, bool manual)
 {
 	UpdatePlayerData(client, newstyle);
+}
+
+public void Shavit_OnFinish(int client, int style, float time, int jumps, int strafes, float sync, int track, float oldtime, float perfs)
+{
+	if(!g_bEnabled)
+		return;
+	
+	if(track == Track_Main)
+	{
+		int stage = MS_GetClientStage(client);
+		
+		timer_snapshot_t snap;
+		Shavit_SaveSnapshot(client, snap, sizeof(timer_snapshot_t));
+		
+		float timet = snap.fCurrentTime - g_fLastTime[client];
+		
+		char timeString[64];
+		FormatSeconds(timet, timeString, sizeof(timeString));
+		
+		char timeDiff[64];
+		FormatSeconds(g_fTime[client][stage][TIME_SPENT] - timet, timeDiff, sizeof(timeDiff));
+	
+		g_fLastTime[client] = timet;
+		
+		stage_t staget;
+		staget.fLastTime = g_fLastTime[client];
+		staget.fSpentTime = timet;
+		staget.fTotalTime = snap.fCurrentTime;
+		staget.iFurthestStage = g_iFurthestStage[client];
+		staget.iStage = stage;
+		
+		g_aStages[client].PushArray(staget);
+
+		if((timet < g_fTime[client][stage][TIME_SPENT]) || (g_fTime[client][stage][TIME_SPENT] == 0.0)) 
+		{
+			
+			UpdatePB(client, timet, snap.fCurrentTime, stage, snap.bsStyle);
+			UpdatePBInCPs(client, timet, snap.fCurrentTime, stage);
+			if(timet < g_fStageWR[snap.bsStyle][stage] || g_fStageWR[snap.bsStyle][stage] == 0.0)
+			{
+				Shavit_PrintToChatAll("New WR for stage %s%i%s. Time: %s (%s-%f%s)", sMessageStyle, stage, sMessageText, timeString, sMessageWarning, timeDiff, sMessageText);
+			} else
+			{
+				Shavit_PrintToChat(client, "New PB for stage %s%i%s. Time: %s (%s-%f%s)", sMessageStyle, stage, sMessageText, timeString, sMessageWarning, timeDiff, sMessageText);
+			}
+			LoadMapWRs();
+		}
+	}
 }
