@@ -605,7 +605,6 @@ public void MS_OnStageChanged(int client, int oldstage, int newstage)
 		char timeDiff[64];
 		FormatSeconds(g_fTime[client][oldstage][TIME_SPENT] - time, timeDiff, sizeof(timeDiff));
 		
-		g_fLastTime[client] = time;
 		
 		stage_t stage;
 		stage.fLastTime = g_fLastTime[client];
@@ -616,6 +615,8 @@ public void MS_OnStageChanged(int client, int oldstage, int newstage)
 		
 		g_aStages[client].PushArray(stage);
 		
+		g_fLastTime[client] = snap.fCurrentTime;
+		
 		char name[32];
 		GetClientName(client, name, 32);
 		
@@ -625,11 +626,11 @@ public void MS_OnStageChanged(int client, int oldstage, int newstage)
 			UpdatePBInCPs(client, time, snap.fCurrentTime, oldstage);
 			if((time < g_fStageWR[snap.bsStyle][oldstage]) || g_fStageWR[snap.bsStyle][oldstage] == 0.0)
 			{
-				Shavit_PrintToChatAll("New WR! %s finished stage %s%i%s in %s (%s-%f%s)", name, sMessageStyle, oldstage, sMessageText, timeString, sMessageWarning, timeDiff, sMessageText);
+				Shavit_PrintToChatAll("New WR! %s finished stage %s%i%s in %s (%s-%%s)", name, sMessageStyle, oldstage, sMessageText, timeString, sMessageWarning, timeDiff, sMessageText);
 				LoadMapWRs();
 			} else
 			{
-				Shavit_PrintToChat(client, "New PB for stage %s%i%s. Time: %s (%s-%f%s)", sMessageStyle, oldstage, sMessageText, timeString, sMessageWarning, timeDiff, sMessageText);
+				Shavit_PrintToChat(client, "New PB for stage %s%i%s. Time: %s (%s-%s%s)", sMessageStyle, oldstage, sMessageText, timeString, sMessageWarning, timeDiff, sMessageText);
 			}
 		}
 	}
@@ -709,7 +710,6 @@ public void Shavit_OnFinish(int client, int style, float time, int jumps, int st
 		char timeDiff[64];
 		FormatSeconds(g_fTime[client][stage][TIME_SPENT] - timet, timeDiff, sizeof(timeDiff));
 	
-		g_fLastTime[client] = timet;
 		
 		stage_t staget;
 		staget.fLastTime = g_fLastTime[client];
@@ -719,6 +719,8 @@ public void Shavit_OnFinish(int client, int style, float time, int jumps, int st
 		staget.iStage = stage;
 		
 		g_aStages[client].PushArray(staget);
+		
+		g_fLastTime[client] = snap.fCurrentTime;
 	
 		char name[32];
 		GetClientName(client, name, 32);
@@ -730,10 +732,10 @@ public void Shavit_OnFinish(int client, int style, float time, int jumps, int st
 			UpdatePBInCPs(client, timet, snap.fCurrentTime, stage);
 			if(timet < g_fStageWR[snap.bsStyle][stage] || g_fStageWR[snap.bsStyle][stage] == 0.0)
 			{
-				Shavit_PrintToChatAll("New WR! %s finished stage %s%i%s in %s (%s-%f%s)", name, sMessageStyle, stage, sMessageText, timeString, sMessageWarning, timeDiff, sMessageText);
+				Shavit_PrintToChatAll("New WR! %s finished stage %s%i%s in %s (%s-%s%s)", name, sMessageStyle, stage, sMessageText, timeString, sMessageWarning, timeDiff, sMessageText);
 			} else
 			{
-				Shavit_PrintToChat(client, "New PB for stage %s%i%s. Time: %s (%s-%f%s)", sMessageStyle, stage, sMessageText, timeString, sMessageWarning, timeDiff, sMessageText);
+				Shavit_PrintToChat(client, "New PB for stage %s%i%s. Time: %s (%s-%s%s)", sMessageStyle, stage, sMessageText, timeString, sMessageWarning, timeDiff, sMessageText);
 			}
 			LoadMapWRs();
 		}
