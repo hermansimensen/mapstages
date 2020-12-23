@@ -589,6 +589,9 @@ public void MS_OnStageChanged(int client, int oldstage, int newstage)
 		
 	if(Shavit_GetTimerStatus(client) != Timer_Running || newstage == 1 || Shavit_IsPracticeMode(client))
 		return;
+		
+	if(Shavit_GetClientTrack(client) != Track_Main)
+		return;
 	
 	if(newstage > g_iFurthestStage[client])
 	{
