@@ -369,6 +369,8 @@ public void SaveStageFile()
 			g_smClusterMap.GetValue(key, stage);
 			file.WriteLine("%s:%i", key, stage);
 		}
+
+		delete snap;
 	}
 	
 	delete file;
